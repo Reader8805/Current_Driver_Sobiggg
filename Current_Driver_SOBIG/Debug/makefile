@@ -60,8 +60,8 @@ all: main-build
 main-build: Current_Driver_SOBIG.elf secondary-outputs
 
 # Tool invocations
-Current_Driver_SOBIG.elf Current_Driver_SOBIG.map: $(OBJS) $(USER_OBJS) C:\Users\DANG\Documents\IOT_Giam_sat_tu_dien\CODE\Current_Driver_SOBIG\STM32F411CEUX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "Current_Driver_SOBIG.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\DANG\Documents\IOT_Giam_sat_tu_dien\CODE\Current_Driver_SOBIG\STM32F411CEUX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Current_Driver_SOBIG.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Current_Driver_SOBIG.elf Current_Driver_SOBIG.map: $(OBJS) $(USER_OBJS) D:\NCKH\Driver_Current_TOOOO_VCL\CODE\Current_Driver_SOBIG\STM32F411CEUX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "Current_Driver_SOBIG.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"D:\NCKH\Driver_Current_TOOOO_VCL\CODE\Current_Driver_SOBIG\STM32F411CEUX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Current_Driver_SOBIG.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
