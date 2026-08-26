@@ -1,0 +1,4 @@
+../Core/Src/fsm.c:7:6:FSM_Init	4	static
+../Core/Src/fsm.c:11:15:FSM_GetCurrentState	4	static
+../Core/Src/fsm.c:15:6:FSM_SetState	16	static
+../Core/Src/fsm.c:20:6:FSM_Update	8	static

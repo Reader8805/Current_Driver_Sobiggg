@@ -1,0 +1,6 @@
+../Core/Src/ad7606.c:14:20:delay_short	16	static,ignoring_inline_asm
+../Core/Src/ad7606.c:18:6:AD7606_Init	8	static
+../Core/Src/ad7606.c:30:6:AD7606_Trigger	8	static
+../Core/Src/ad7606.c:37:6:AD7606_Start_DMA_Read	8	static
+../Core/Src/ad7606.c:45:6:AD7606_End_DMA_Read	8	static
+../Core/Src/ad7606.c:50:6:AD7606_Process_Data	16	static

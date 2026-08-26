@@ -1,0 +1,4 @@
+../Core/Src/modbus_rtu.c:18:10:Modbus_Calculate_CRC16	24	static
+../Core/Src/modbus_rtu.c:35:6:Modbus_Init	8	static
+../Core/Src/modbus_rtu.c:39:6:Modbus_Rx_Callback	16	static
+../Core/Src/modbus_rtu.c:45:6:Modbus_Process	32	static
