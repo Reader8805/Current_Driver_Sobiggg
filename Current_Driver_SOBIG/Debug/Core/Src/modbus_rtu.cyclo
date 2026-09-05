@@ -1,4 +1,0 @@
-../Core/Src/modbus_rtu.c:18:10:Modbus_Calculate_CRC16	4
-../Core/Src/modbus_rtu.c:35:6:Modbus_Init	1
-../Core/Src/modbus_rtu.c:39:6:Modbus_Rx_Callback	1
-../Core/Src/modbus_rtu.c:45:6:Modbus_Process	13

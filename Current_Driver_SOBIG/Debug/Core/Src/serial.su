@@ -1,0 +1,7 @@
+../Core/Src/serial.c:16:16:Calculate_Checksum	24	static
+../Core/Src/serial.c:25:6:RS485_Init	16	static
+../Core/Src/serial.c:56:6:RS485_Send_Frame_DMA	40	static
+../Core/Src/serial.c:107:13:Process_Valid_Frame	16	static
+../Core/Src/serial.c:116:6:RS485_Parse_Byte	24	static
+../Core/Src/serial.c:170:6:RS485_RxEvent_Handler	24	static
+../Core/Src/serial.c:180:6:RS485_TxCplt_Handler	8	static

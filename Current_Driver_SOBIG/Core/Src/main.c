@@ -25,6 +25,8 @@
 #include "pwm_control.h"
 #include "fsm.h"
 #include "control_loop.h"
+#include "serial.h"
+#include "RS485_transmit_func.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -110,6 +112,7 @@ int main(void)
     FSM_Init();
     AD7606_Init();
     PWM_Init();
+    RS485_Init(&huart1);
 
     // 2. Bắt đầu kích hoạt Timer chạy ngầm tạo Pipeline ADC-PWM 25kHz
     HAL_TIM_Base_Start_IT(&htim1);
@@ -124,6 +127,8 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    // Hàm đóng gói, phân tách bản tin
+    APP_RS485_Task(&huart1);
 	  // Hàm này check lỗi, chạy nền song song, không làm tắc nghẽn PID
 	  FSM_Update();
   }
@@ -362,7 +367,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, ADC_RST_Pin|ADC_CONVST_Pin|ADC_CS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, ADC_RST_Pin|ADC_CONVST_Pin|ADC_CS_Pin|GPIO_PIN_15, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : ADC_BUSY_Pin */
   GPIO_InitStruct.Pin = ADC_BUSY_Pin;
@@ -370,8 +375,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(ADC_BUSY_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : ADC_RST_Pin ADC_CONVST_Pin ADC_CS_Pin */
-  GPIO_InitStruct.Pin = ADC_RST_Pin|ADC_CONVST_Pin|ADC_CS_Pin;
+  /*Configure GPIO pins : ADC_RST_Pin ADC_CONVST_Pin ADC_CS_Pin PA15 */
+  GPIO_InitStruct.Pin = ADC_RST_Pin|ADC_CONVST_Pin|ADC_CS_Pin|GPIO_PIN_15;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

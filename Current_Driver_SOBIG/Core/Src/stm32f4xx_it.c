@@ -24,7 +24,6 @@
 /* USER CODE BEGIN Includes */
 #include "ad7606.h"
 #include "control_loop.h"
-#include "modbus_rtu.h"
 #include "fsm.h"
 #include "pwm_control.h"
 
@@ -336,13 +335,4 @@ void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
     }
 }
 
-// 4. NGẮT IDLE UART (Modbus RTU). Mức ưu tiên: 5
-void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
-{
-    if (huart->Instance == USART1)
-    {
-        // Bắt được 1 frame Modbus tĩnh (đường truyền im lặng)
-        Modbus_Rx_Callback(Size);
-    }
-}
 /* USER CODE END 1 */

@@ -1,5 +1,6 @@
-Core/Src/modbus_rtu.o: ../Core/Src/modbus_rtu.c ../Core/Inc/modbus_rtu.h \
- ../Core/Inc/main.h ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h \
+Core/Src/RS485_transmit_func.o: ../Core/Src/RS485_transmit_func.c \
+ ../Core/Inc/RS485_transmit_func.h ../Core/Inc/main.h \
+ ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h \
  ../Core/Inc/stm32f4xx_hal_conf.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_def.h \
@@ -28,8 +29,8 @@ Core/Src/modbus_rtu.o: ../Core/Src/modbus_rtu.c ../Core/Inc/modbus_rtu.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h \
- ../Core/Inc/control_loop.h ../Core/Inc/pwm_control.h ../Core/Inc/fsm.h
-../Core/Inc/modbus_rtu.h:
+ ../Core/Inc/serial.h
+../Core/Inc/RS485_transmit_func.h:
 ../Core/Inc/main.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
 ../Core/Inc/stm32f4xx_hal_conf.h:
@@ -60,6 +61,4 @@ Core/Src/modbus_rtu.o: ../Core/Src/modbus_rtu.c ../Core/Inc/modbus_rtu.h \
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h:
-../Core/Inc/control_loop.h:
-../Core/Inc/pwm_control.h:
-../Core/Inc/fsm.h:
+../Core/Inc/serial.h:
