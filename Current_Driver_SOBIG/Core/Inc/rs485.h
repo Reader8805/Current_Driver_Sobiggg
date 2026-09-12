@@ -1,0 +1,33 @@
+//#ifndef APP_RS485_H
+//#define APP_RS485_H
+//
+//#include "main.h"
+//#include "control_loop.h"
+//#include "fsm.h"
+///* Khởi tạo các trạng thái của ứng dụng */
+//typedef enum {
+//    APP_STATE_IDLE,
+//    APP_STATE_WAIT_TX
+//} AppState_t;
+//
+///* Hàm thực thi thuật toán chính */
+//void APP_RS485_Task(UART_HandleTypeDef *huart);
+//
+//#endif /* APP_RS485_H */
+#ifndef APP_RS485_H
+#define APP_RS485_H
+
+#include "main.h"
+#define CMD_BROADCAST_CONTROL 0x20
+#define RESP_BROADCAST_CONTROL 0xA0
+
+/* Khởi tạo các trạng thái của ứng dụng */
+typedef enum {
+    APP_STATE_IDLE,
+    APP_STATE_WAIT_TX
+} AppState_t;
+
+/* Hàm thực thi thuật toán chính */
+void APP_RS485_Task(UART_HandleTypeDef *huart);
+
+#endif /* APP_RS485_H */

@@ -1,0 +1,224 @@
+#include <rs485.h>
+#include "serial.h"
+#include "ad7606.h"
+#include "fsm.h"
+#include "control_loop.h"
+static AppState_t app_state = APP_STATE_IDLE;
+static uint32_t delay_start_time = 0;
+
+void APP_RS485_Task(UART_HandleTypeDef *huart)
+{
+    static uint8_t target_state = 0;
+    static float target_current = 0.0f;
+
+    switch (app_state) {
+        case APP_STATE_IDLE:
+            if (frame_received_flag == 1)
+            {
+                // Bước 1: Kiểm tra đúng địa chỉ thiết bị (SLAVE_ID)
+                if (valid_frame_buffer.address == SLAVE_ID)
+                {
+                    // --- CASE 1: Lệnh GHI điều khiển (0x10) - Bắt buộc Length = 5 ---
+                    if (valid_frame_buffer.command == CMD_WRITE_CONTROL && valid_frame_buffer.length == 5)
+                    {
+                        target_state = valid_frame_buffer.payload[0];
+
+                        uint16_t raw_unsigned = (valid_frame_buffer.payload[3] << 8) | valid_frame_buffer.payload[4];
+
+                        int16_t current_raw = (int16_t)raw_unsigned;
+                        target_current = (float)current_raw / 100.0f;
+
+                        FSM_SetCommand(target_state);
+                        Control_SetTarget(target_current);
+
+                        delay_start_time = HAL_GetTick();
+                        app_state = APP_STATE_WAIT_TX;
+                    }
+                    // --- CASE 2: Lệnh ĐỌC trạng thái (0x03) - Bắt buộc Length = 0 ---
+                    else if (valid_frame_buffer.command == CMD_READ_STATUS && valid_frame_buffer.length == 0)
+                    {
+                        delay_start_time = HAL_GetTick();
+                        app_state = APP_STATE_WAIT_TX;
+
+                    }
+                    else
+                    {
+                        frame_received_flag = 0;
+                    }
+                }
+                else
+                {
+                    frame_received_flag = 0;
+                }
+            }
+            break;
+
+        case APP_STATE_WAIT_TX:
+            // Đợi 5ms không chặn CPU
+            if ((HAL_GetTick() - delay_start_time) >=5)
+            {
+                uint8_t resp[5];
+
+                // --- PHẢN HỒI CHO LỆNH ĐỌC (Mã gửi về: 0x83) ---
+                if (valid_frame_buffer.command == CMD_READ_STATUS)
+                {
+                    uint8_t  state   = (uint8_t)FSM_GetCurrentState();     // 1 byte On/Off state
+                    uint16_t temp    = 2850;  // 2 byte Nhiệt độ
+                    uint16_t current = (uint16_t)(current_mean * 100.0f);  // 2 byte Dòng điện
+
+                    resp[0] = state;
+                    resp[1] = (temp >> 8) & 0xFF;
+                    resp[2] = temp & 0xFF;
+                    resp[3] = (current >> 8) & 0xFF;
+                    resp[4] = current & 0xFF;
+
+                    // Truyền huart vào hàm gửi để module không bị phụ thuộc vào biến toàn cục huart1
+                    RS485_Send_Frame_DMA(huart, SLAVE_ID, RESP_READ_STATUS, resp, 5);
+                }
+                // --- PHẢN HỒI CHO LỆNH GHI (Mã gửi về: 0x90) ---
+                else if (valid_frame_buffer.command == CMD_WRITE_CONTROL)
+                {
+//                    resp[0] = valid_frame_buffer.payload[0];
+//                    resp[1] = valid_frame_buffer.payload[1];
+//                    resp[2] = valid_frame_buffer.payload[2];
+//                    resp[3] = valid_frame_buffer.payload[3];
+//                    resp[4] = valid_frame_buffer.payload[4];
+                    uint8_t  state   = (uint8_t)FSM_GetCurrentState();     // 1 byte On/Off state
+                    uint16_t temp    = 2850;  // 2 byte Nhiệt độ
+                    uint16_t current = (uint16_t)(current_mean * 100.0f);
+                    resp[0] = state;
+                    resp[1] = (temp >> 8) & 0xFF;
+                    resp[2] = temp & 0xFF;
+                    resp[3] = (current >> 8) & 0xFF;
+                    resp[4] = current & 0xFF;
+                    RS485_Send_Frame_DMA(huart, SLAVE_ID, RESP_WRITE_CONTROL, resp, 5);
+                }
+
+                frame_received_flag = 0;
+                app_state = APP_STATE_IDLE;
+            }
+            break;
+    }
+}
+//#include "rs485.h"
+//#include "serial.h" // Cần thư viện serial của bạn để lấy valid_frame_buffer, frame_received_flag, v.v.
+//#include "fsm.h"
+//#include "control_loop.h"
+//extern UART_HandleTypeDef huart1;
+//// Đưa các biến quản lý trạng thái vào file C để đóng gói (ẩn khỏi main.c)
+//static AppState_t app_state = APP_STATE_IDLE;
+//static uint32_t delay_start_time = 0;
+//static uint32_t tx_slot_delay = 0;
+//
+//void APP_RS485_Task(UART_HandleTypeDef *huart)
+//{
+//static uint8_t target_state = 0;
+//  static float target_current = 0.0f;
+//
+//  switch (app_state) {
+//    case APP_STATE_IDLE:
+//      if (frame_received_flag == 1)
+//      {
+//        // 1. Kiểm tra địa chỉ: SLAVE_ID hoặc địa chỉ Broadcast (0x00)
+//        if (valid_frame_buffer.address == SLAVE_ID || valid_frame_buffer.address == 0x00)
+//        {
+//          // --- CASE 1: LỆNH GHI ĐIỀU KHIỂN TOÀN BỘ (BROADCAST CONTROL - 0x20) ---
+//          if (valid_frame_buffer.command == CMD_BROADCAST_CONTROL && valid_frame_buffer.length == 12)
+//          {
+//            // Trích xuất State (1 byte) và Current (2 byte) tương ứng với SLAVE_ID
+//            uint8_t offset = (SLAVE_ID - 1) * 3;
+//            target_state = valid_frame_buffer.payload[offset];
+//
+//            uint16_t current_raw = (valid_frame_buffer.payload[offset + 1] << 8) |
+//                                    valid_frame_buffer.payload[offset + 2];
+//            target_current = (float)current_raw / 100.0f;
+//
+//            // Xếp hàng phản hồi tránh xung đột bus (Slave 1: 5ms, Slave 2: 25ms, Slave 3: 45ms, Slave 4: 65ms)
+//            tx_slot_delay = 5 + (SLAVE_ID - 1) * 20;
+//
+//            delay_start_time = HAL_GetTick();
+//            app_state = APP_STATE_WAIT_TX;
+//          }
+//          // --- CASE 2: LỆNH ĐỌC TRẠNG THÁI (READ STATUS - 0x03) ---
+//          else if (valid_frame_buffer.command == CMD_READ_STATUS && valid_frame_buffer.length == 0)
+//          {
+//            // Nếu gửi tới địa chỉ 0x00 (Broadcast Read từ Event Timeout của LabVIEW) -> Xếp hàng theo ID
+//            if (valid_frame_buffer.address == 0x00)
+//            {
+//              tx_slot_delay = 5 + (SLAVE_ID - 1) * 20;
+//            }
+//            // Nếu gửi riêng đích danh SLAVE_ID -> Phản hồi ngay sau 5ms
+//            else
+//            {
+//              tx_slot_delay = 5;
+//            }
+//
+//            delay_start_time = HAL_GetTick();
+//            app_state = APP_STATE_WAIT_TX;
+//          }
+//          // --- CASE 3: LỆNH GHI ĐƠN LẺ TỪNG SLAVE (WRITE CONTROL - 0x10) ---
+//          else if (valid_frame_buffer.command == CMD_WRITE_CONTROL && valid_frame_buffer.length == 5)
+//          {
+//            target_state = valid_frame_buffer.payload[0];
+//            uint16_t current_raw = (valid_frame_buffer.payload[3] << 8) | valid_frame_buffer.payload[4];
+//            target_current = (float)current_raw / 100.0f;
+//
+//            FSM_SetCommand(target_state);
+//			Control_SetTarget(target_current);
+//
+//            tx_slot_delay = 5;
+//            delay_start_time = HAL_GetTick();
+//            app_state = APP_STATE_WAIT_TX;
+//          }
+//          else
+//          {
+//            // Sai command hoặc độ dài frame không khớp
+//            frame_received_flag = 0;
+//          }
+//        }
+//        else
+//        {
+//          // Bản tin gửi cho Slave khác
+//          frame_received_flag = 0;
+//        }
+//      }
+//      break;
+//
+//    case APP_STATE_WAIT_TX:
+//      // Chờ đúng thời gian trễ phân khe (không block CPU)
+//      if ((HAL_GetTick() - delay_start_time) >= tx_slot_delay)
+//      {
+//        uint8_t resp[5];
+//
+//        // --- NHÁNH 1: PHẢN HỒI LỆNH ĐỌC (0x83) HOẶC BROADCAST (0xA0) ---
+//        if (valid_frame_buffer.command == CMD_BROADCAST_CONTROL || valid_frame_buffer.command == CMD_READ_STATUS)
+//        {
+//          uint8_t  state   = target_state;
+//          uint16_t temp    = 2850;                                // Giá trị nhiệt độ (28.50 C)
+//          uint16_t current = (uint16_t)(target_current * 100.0f); // Dòng điện quy đổi thành nguyên 16-bit
+//
+//          resp[0] = state;
+//          resp[1] = (temp >> 8) & 0xFF;
+//          resp[2] = temp & 0xFF;
+//          resp[3] = (current >> 8) & 0xFF;
+//          resp[4] = current & 0xFF;
+//
+//          // Định danh mã command phản hồi tương ứng
+//          uint8_t resp_cmd = (valid_frame_buffer.command == CMD_BROADCAST_CONTROL) ?
+//                              RESP_BROADCAST_CONTROL : RESP_READ_STATUS;
+//
+//          RS485_Send_Frame_DMA(&huart1, SLAVE_ID, resp_cmd, resp, 5);
+//        }
+//        // --- NHÁNH 2: PHẢN HỒI ECHO CHO LỆNH GHI ĐƠN LẺ (0x90) ---
+//        else if (valid_frame_buffer.command == CMD_WRITE_CONTROL)
+//        {
+//          memcpy(resp, valid_frame_buffer.payload, 5);
+//          RS485_Send_Frame_DMA(&huart1, SLAVE_ID, RESP_WRITE_CONTROL, resp, 5);
+//        }
+//
+//        frame_received_flag = 0; // Xóa cờ, cho phép nhận frame tiếp theo
+//        app_state = APP_STATE_IDLE;
+//      }
+//      break;
+//  }
+//}

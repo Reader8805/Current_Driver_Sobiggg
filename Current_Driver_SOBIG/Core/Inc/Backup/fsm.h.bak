@@ -15,5 +15,7 @@ void FSM_Init(void);
 void FSM_Update(void);
 SystemState_t FSM_GetCurrentState(void);
 void FSM_SetState(SystemState_t new_state);
+void FSM_SetCommand(uint8_t cmd);
+
 
 #endif /* FSM_H */

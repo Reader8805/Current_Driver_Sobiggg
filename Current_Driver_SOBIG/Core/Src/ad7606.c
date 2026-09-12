@@ -5,8 +5,11 @@ extern SPI_HandleTypeDef hspi1;
 
 // Buffer RAW nhận từ SPI
 volatile int16_t adc_raw[8];
-volatile float adc_voltage[8];
 
+volatile float adc_voltage[8];
+extern volatile int16_t offset_ch1;
+volatile float current_mean = 0;
+extern volatile float current_display;
 // Cần 1 buffer rỗng đẩy qua SPI để tạo clock cho quá trình nhận data
 static uint16_t dummy_tx[8] = {0};
 
@@ -14,6 +17,38 @@ static uint16_t dummy_tx[8] = {0};
 static inline void delay_short(void) {
     for(int i = 0; i < 15; i++) __NOP();
 }
+
+int16_t AD7606_Calibrate_Offset_CH1(uint16_t num_samples)
+{
+    int32_t sum = 0;
+
+    // Tắt ngắt BUSY để tránh kích hoạt ngắt khi đang đọc tay
+    HAL_NVIC_DisableIRQ(EXTI1_IRQn);
+
+    for(uint16_t i = 0; i < num_samples; i++)
+    {
+        AD7606_Trigger();
+
+        // Thêm timeout chống kẹt cứng (tối đa 5000 vòng)
+        uint32_t timeout = 5000;
+        while((HAL_GPIO_ReadPin(ADC_BUSY_GPIO_Port, ADC_BUSY_Pin) == GPIO_PIN_SET) && (--timeout > 0));
+
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET); // CS LOW
+
+        // Đọc 8 channel (16-bit mỗi kênh = 8 halfword = 16 bytes)
+        HAL_SPI_TransmitReceive(&hspi1, (uint8_t*)dummy_tx, (uint8_t*)adc_raw, 8, 10);
+
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);   // CS HIGH
+
+        sum += adc_raw[0];
+        //HAL_Delay(1);
+    }
+
+    HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+
+    return (int16_t)(sum / num_samples);
+}
+
 
 void AD7606_Init(void) {
     // Đảm bảo các chân điều khiển ở trạng thái chờ
@@ -36,9 +71,14 @@ void AD7606_Trigger(void) {
 
 void AD7606_Start_DMA_Read(void) {
     // Kéo chân Chip Select xuống để báo hiệu bắt đầu truyền data
+//	uint32_t flush_dr = hspi1.Instance->DR;
+//	(void)flush_dr;
+//	__HAL_SPI_CLEAR_OVRFLAG(&hspi1);
+
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET); // CS LOW
 
     // Gọi hàm SPI truyền/nhận qua DMA. CPU hoàn toàn rảnh tay đi làm việc khác.
+    //HAL_SPI_Receive_DMA(&hspi1, (uint8_t*)adc_raw, 8);
     HAL_SPI_TransmitReceive_DMA(&hspi1, (uint8_t*)dummy_tx, (uint8_t*)adc_raw, 8);
 }
 
@@ -49,7 +89,26 @@ void AD7606_End_DMA_Read(void) {
 
 void AD7606_Process_Data(void) {
     // Scale giá trị RAW sang Float. 5.0V ứng với dải 16-bit (-32768 đến 32767)
-    for(int i = 0; i < 8; i++) {
-        adc_voltage[i] = (float)adc_raw[i] * (5.0f / 32768.0f);
-    }
+
+	if(adc_raw[0] < offset_ch1){
+
+
+	    current_mean = NEG_GAIN* (float)(adc_raw[0]-offset_ch1) * 5.0f/ 32768.0f/ 0.06722f;
+
+	    // Biên độ dòng điện đỉnh-đỉnh và Nhiễu dòng điện (std)
+//	    current_peak_to_peak = current_max - current_min;
+//	    current_std          = POS_GAIN*(adc_std * 5.0f / 32768.0f) / 0.06722f;
+	}else if(adc_raw[0] >= offset_ch1){
+		 current_mean = POS_GAIN* (float)(adc_raw[0]-offset_ch1) * 5.0f/ 32768.0f/ 0.06722f;
+
+		    // Biên độ dòng điện đỉnh-đỉnh và Nhiễu dòng điện (std)
+//		    current_peak_to_peak = current_max - current_min;
+//		    current_std          = POS_GAIN*(adc_std * 5.0f / 32768.0f) / 0.06722f;
+
+	}
+	current_display = current_mean;
+	if(current_display < 0.1 && current_display > -0.1)
+		current_display = 0;
+
 }
+

@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <string.h>
 
+
+
 // ---------------- Cấu hình phần cứng ----------------
 #define RS485_PORT GPIOA
 #define RS485_DE_PIN GPIO_PIN_15
@@ -23,7 +25,7 @@
 #define RESP_WRITE_CONTROL  0x90    // MCU phản hồi xác nhận lệnh ghi (0x10 | 0x90)
 
 // Định nghĩa ID cho MCU
-#define SLAVE_ID 0x02
+#define SLAVE_ID 0x01
 
 // Trạng thái máy trạng thái nhận
 typedef enum {

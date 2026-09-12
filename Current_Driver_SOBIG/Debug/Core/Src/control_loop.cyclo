@@ -1,2 +1,3 @@
-../Core/Src/control_loop.c:9:6:Control_SetTarget	1
-../Core/Src/control_loop.c:14:6:Control_UpdateLoop_ISR	2
+../Core/Src/control_loop.c:31:6:Control_SetTarget	1
+../Core/Src/control_loop.c:36:14:FF_Calc	1
+../Core/Src/control_loop.c:42:6:Control_UpdateLoop_ISR	4

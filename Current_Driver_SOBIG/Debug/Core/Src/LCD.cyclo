@@ -1,0 +1,8 @@
+../Core/Src/LCD.c:10:6:lcd_send_cmd	1
+../Core/Src/LCD.c:22:6:lcd_send_data	1
+../Core/Src/LCD.c:34:6:lcd_clear	1
+../Core/Src/LCD.c:39:6:lcd_put_cur	3
+../Core/Src/LCD.c:47:6:lcd_init	1
+../Core/Src/LCD.c:60:6:lcd_send_string	2
+../Core/Src/LCD.c:68:6:UI_System_Init	1
+../Core/Src/LCD.c:73:6:UI_System_Update	8

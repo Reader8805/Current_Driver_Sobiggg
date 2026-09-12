@@ -2,7 +2,8 @@
 #define APP_RS485_H
 
 #include "main.h"
-
+#include "control_loop.h"
+#include "fsm.h"
 /* Khởi tạo các trạng thái của ứng dụng */
 typedef enum {
     APP_STATE_IDLE,
