@@ -23,7 +23,7 @@ int16_t AD7606_Calibrate_Offset_CH1(uint16_t num_samples)
     int32_t sum = 0;
 
     // Tắt ngắt BUSY để tránh kích hoạt ngắt khi đang đọc tay
-    HAL_NVIC_DisableIRQ(EXTI1_IRQn);
+    HAL_NVIC_DisableIRQ(EXTI3_IRQn);
 
     for(uint16_t i = 0; i < num_samples; i++)
     {
@@ -31,7 +31,7 @@ int16_t AD7606_Calibrate_Offset_CH1(uint16_t num_samples)
 
         // Thêm timeout chống kẹt cứng (tối đa 5000 vòng)
         uint32_t timeout = 5000;
-        while((HAL_GPIO_ReadPin(ADC_BUSY_GPIO_Port, ADC_BUSY_Pin) == GPIO_PIN_SET) && (--timeout > 0));
+        while((HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_3) == GPIO_PIN_SET) && (--timeout > 0));
 
         HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET); // CS LOW
 
@@ -44,7 +44,7 @@ int16_t AD7606_Calibrate_Offset_CH1(uint16_t num_samples)
         //HAL_Delay(1);
     }
 
-    HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+    HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 
     return (int16_t)(sum / num_samples);
 }
@@ -53,7 +53,7 @@ int16_t AD7606_Calibrate_Offset_CH1(uint16_t num_samples)
 void AD7606_Init(void) {
     // Đảm bảo các chân điều khiển ở trạng thái chờ
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET); // CS High
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_SET); // CONVST High
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_SET); // CONVST High
 
     // Xung Reset module theo chuẩn datasheet
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_SET); // RST High
@@ -64,9 +64,9 @@ void AD7606_Init(void) {
 
 void AD7606_Trigger(void) {
     // Tạo xung mức thấp kéo dài ít nhất 50ns để bắt đầu lấy mẫu đồng loạt
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_RESET); // CONVST LOW
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_RESET); // CONVST LOW
     delay_short();
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_3, GPIO_PIN_SET);   // CONVST HIGH
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_SET);   // CONVST HIGH
 }
 
 void AD7606_Start_DMA_Read(void) {

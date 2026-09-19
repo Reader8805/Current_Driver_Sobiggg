@@ -235,18 +235,17 @@ void EXTI0_IRQHandler(void)
 }
 
 /**
-  * @brief This function handles EXTI line1 interrupt.
+  * @brief This function handles EXTI line3 interrupt.
   */
-void EXTI1_IRQHandler(void)
+void EXTI3_IRQHandler(void)
 {
-  /* USER CODE BEGIN EXTI1_IRQn 0 */
+  /* USER CODE BEGIN EXTI3_IRQn 0 */
 
-  /* USER CODE END EXTI1_IRQn 0 */
-  HAL_GPIO_EXTI_IRQHandler(ADC_BUSY_Pin);
-  /* USER CODE BEGIN EXTI1_IRQn 1 */
-  // AD7606 báo lấy mẫu xong (cạnh xuống) -> Bắt đầu kéo DMA đọc SPI
+  /* USER CODE END EXTI3_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_3);
+  /* USER CODE BEGIN EXTI3_IRQn 1 */
   AD7606_Start_DMA_Read();
-  /* USER CODE END EXTI1_IRQn 1 */
+  /* USER CODE END EXTI3_IRQn 1 */
 }
 
 /**
@@ -386,4 +385,6 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
         __HAL_DMA_DISABLE_IT(huart->hdmarx, DMA_IT_HT);
     }
 }
+
+
 /* USER CODE END 1 */

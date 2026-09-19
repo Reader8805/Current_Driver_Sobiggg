@@ -57,19 +57,25 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define ADC_BUSY_Pin GPIO_PIN_1
-#define ADC_BUSY_GPIO_Port GPIOA
-#define ADC_BUSY_EXTI_IRQn EXTI1_IRQn
+#define ADC_CONVST_Pin GPIO_PIN_1
+#define ADC_CONVST_GPIO_Port GPIOA
 #define ADC_RST_Pin GPIO_PIN_2
 #define ADC_RST_GPIO_Port GPIOA
-#define ADC_CONVST_Pin GPIO_PIN_3
-#define ADC_CONVST_GPIO_Port GPIOA
+#define ADC_BUSY_Pin GPIO_PIN_3
+#define ADC_BUSY_GPIO_Port GPIOA
+#define ADC_BUSY_EXTI_IRQn EXTI3_IRQn
 #define ADC_CS_Pin GPIO_PIN_4
 #define ADC_CS_GPIO_Port GPIOA
 #define ADC_SCK_Pin GPIO_PIN_5
 #define ADC_SCK_GPIO_Port GPIOA
 #define ADC_MISO_Pin GPIO_PIN_6
 #define ADC_MISO_GPIO_Port GPIOA
+#define LED_RED_Pin GPIO_PIN_1
+#define LED_RED_GPIO_Port GPIOB
+#define LED_YELLOW_Pin GPIO_PIN_2
+#define LED_YELLOW_GPIO_Port GPIOB
+#define LED_GREEN_Pin GPIO_PIN_10
+#define LED_GREEN_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

@@ -2,4 +2,5 @@
 ../Core/Src/fsm.c:19:15:FSM_GetCurrentState	4	static
 ../Core/Src/fsm.c:23:6:FSM_SetState	16	static
 ../Core/Src/fsm.c:28:6:FSM_SetCommand	16	static
-../Core/Src/fsm.c:33:6:FSM_Update	16	static
+../Core/Src/fsm.c:31:6:LED_Display	16	static
+../Core/Src/fsm.c:61:6:FSM_Update	16	static

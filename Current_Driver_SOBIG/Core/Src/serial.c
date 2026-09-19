@@ -31,28 +31,6 @@ void RS485_Init(UART_HandleTypeDef *huart) {
     __HAL_DMA_DISABLE_IT(huart->hdmarx, DMA_IT_HT); 
 }
 
-// Hàm truyền DMA
-// void RS485_Send_Frame_DMA(UART_HandleTypeDef *huart, uint8_t addr, uint8_t cmd, uint8_t *data, uint8_t len) {
-//     static uint8_t txBuffer[MAX_PAYLOAD_SIZE + 6]; 
-//     uint8_t idx = 0;
-
-//     txBuffer[idx++] = FRAME_HEADER;
-//     txBuffer[idx++] = addr;
-//     txBuffer[idx++] = cmd;
-//     txBuffer[idx++] = len;
-
-//     for(int i = 0; i < len; i++) {
-//         txBuffer[idx++] = data[i];
-//     }
-
-//     txBuffer[idx++] = Calculate_Checksum(addr, cmd, len, data);
-//     txBuffer[idx++] = FRAME_FOOTER;
-
-//     // Kéo DE lên mức CAO để phát
-//     HAL_GPIO_WritePin(RS485_PORT, RS485_DE_PIN, GPIO_PIN_SET);
-//     HAL_UART_Transmit_DMA(huart, txBuffer, idx);
-// }
-
 void RS485_Send_Frame_DMA(UART_HandleTypeDef *huart, uint8_t addr, uint8_t cmd, uint8_t *data, uint8_t len) {
     // Ngăn chặn truyền nếu UART đang bận
     if (huart->gState != HAL_UART_STATE_READY) {
@@ -79,31 +57,7 @@ void RS485_Send_Frame_DMA(UART_HandleTypeDef *huart, uint8_t addr, uint8_t cmd, 
     HAL_UART_Transmit_DMA(huart, txBuffer, idx);
 }
 
-// Xử lý bản tin hợp lệ (Logic ứng dụng của bạn đặt ở đây)
-// static void Process_Valid_Frame(UART_HandleTypeDef *huart, CustomFrame_t *frame) {
-//     // uint8_t responsePayload[MAX_PAYLOAD_SIZE];
-//     // uint8_t respLen = 0;
 
-//     // if (frame->address == 0x01) { 
-//     //     if (frame->command == 0x10) { 
-//     //         responsePayload[0] = 0x4F; // 'O'
-//     //         responsePayload[1] = 0x4B; // 'K'
-            
-//     //         if(frame->length > 0) {
-//     //             responsePayload[2] = frame->payload[0];
-//     //             respLen = 3;
-//     //         } else {
-//     //             respLen = 2;
-//     //         }
-
-//     //         RS485_Send_Frame_DMA(huart, 0x01, 0x90, responsePayload, respLen);
-//     //     }
-//     // }
-
-//     memcpy(&valid_frame_buffer, frame, sizeof(CustomFrame_t));
-
-//     frame_received_flag = 1;
-// }
 static void Process_Valid_Frame(UART_HandleTypeDef *huart, CustomFrame_t *frame) {
     // Chỉ chép bản tin mới khi hàm main đã xử lý xong bản tin cũ (flag = 0)
     if (frame_received_flag == 0) {

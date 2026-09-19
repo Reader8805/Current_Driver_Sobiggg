@@ -8,7 +8,7 @@ static SystemState_t currentState = STATE_INIT;
 static uint8_t labview_cmd = 0;
 
 // --- CÁC NGƯỠNG BẢO VỆ AN TOÀN ---
-#define MAX_CURRENT_LIMIT   10.0f   // Dòng điện tối đa (Ampe)
+#define MAX_CURRENT_LIMIT   15.0f   // Dòng điện tối đa (Ampe)
 #define MAX_TEMP_LIMIT      80.0f   // Nhiệt độ tối đa (Độ C)
 
 void FSM_Init(void) {
@@ -28,7 +28,35 @@ void FSM_SetState(SystemState_t new_state) {
 void FSM_SetCommand(uint8_t cmd) {
     labview_cmd = cmd;
 }
+void LED_Display(uint8_t state_case) {
+	//0: red, 1: yellow, 2: green
+	switch(state_case) {
+    case STATE_INIT:
+    	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 1);
+    	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 1);
+    	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, 1);
+        break;
 
+    case STATE_READY:
+    	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 0);
+    	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 1);
+    	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, 0);
+        break;
+
+    case STATE_RUN:
+    	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 0);
+    	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 0);
+    	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, 1);
+        break;
+
+    case STATE_FAULT:
+
+    	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, 1);
+    	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, 0);
+    	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, 0);
+        break;
+	}
+}
 // Cập nhật State Machine liên tục trong while(1) của main
 void FSM_Update(void) {
 
@@ -42,6 +70,7 @@ void FSM_Update(void) {
         if (current_feedback > MAX_CURRENT_LIMIT || current_feedback < -MAX_CURRENT_LIMIT) {
             PWM_Stop();
             labview_cmd = 0; // Xóa luôn lệnh chạy cũ từ LabVIEW cho an toàn
+
             currentState = STATE_FAULT;
         }
     }
@@ -51,10 +80,13 @@ void FSM_Update(void) {
         case STATE_INIT:
             // Khởi tạo ngoại vi xong, tự động chuyển sang READY
             PWM_Stop();
+            LED_Display(currentState);
+            for(int i = 0; i < 10000; i++);
             currentState = STATE_READY;
             break;
 
         case STATE_READY:
+        	LED_Display(currentState);
             PWM_Stop(); // Đảm bảo phần cứng tắt hoàn toàn
 
             // Đợi lệnh Start (1) từ LabVIEW mới cho chạy
@@ -64,6 +96,7 @@ void FSM_Update(void) {
             break;
 
         case STATE_RUN:
+        	LED_Display(currentState);
             // Ghi chú: Ở trạng thái RUN, việc tính toán PID và xuất PWM
             // được thực hiện bên trong ngắt của hàm Control_UpdateLoop_ISR (control_loop.c)
 
@@ -75,6 +108,7 @@ void FSM_Update(void) {
             break;
 
         case STATE_FAULT:
+        	LED_Display(currentState);
             // KHÓA CỨNG PWM KHẨN CẤP
             PWM_Stop();
 

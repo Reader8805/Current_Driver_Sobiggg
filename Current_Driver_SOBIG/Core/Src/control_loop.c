@@ -19,7 +19,7 @@ static float K_ff = 0.045833f;
 // Các biến trạng thái của bộ điều khiển số
 static float integral = 0.0f;
 static float prev_error = 0.0f;
-
+float total_duty = 0;
 // Giới hạn bão hòa đầu ra (Saturation)
 // Đặt max 0.95 (95%) để chừa lại dead-time cho phần cứng mạch cầu (nếu có)
 #define DUTY_MAX  0.95f
@@ -65,7 +65,7 @@ void Control_UpdateLoop_ISR(void) {
         float ff_out = FF_Calc(current_setpoint);
 
         // 8. Tổng hợp tín hiệu điều khiển: u(k) = u_pid(k) + u_ff(k)
-        float total_duty = pid_out + ff_out;
+        total_duty = pid_out + ff_out;
 
         // 9. Khâu Bão hòa (Saturation) & Clamping Anti-Windup
         if (total_duty > DUTY_MAX) {

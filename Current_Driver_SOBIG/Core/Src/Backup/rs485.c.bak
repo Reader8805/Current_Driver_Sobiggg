@@ -55,7 +55,7 @@ void APP_RS485_Task(UART_HandleTypeDef *huart)
 
         case APP_STATE_WAIT_TX:
             // Đợi 5ms không chặn CPU
-            if ((HAL_GetTick() - delay_start_time) >= 5)
+            if ((HAL_GetTick() - delay_start_time) >=5)
             {
                 uint8_t resp[5];
 
@@ -78,12 +78,19 @@ void APP_RS485_Task(UART_HandleTypeDef *huart)
                 // --- PHẢN HỒI CHO LỆNH GHI (Mã gửi về: 0x90) ---
                 else if (valid_frame_buffer.command == CMD_WRITE_CONTROL)
                 {
-                    resp[0] = valid_frame_buffer.payload[0];
-                    resp[1] = valid_frame_buffer.payload[1];
-                    resp[2] = valid_frame_buffer.payload[2];
-                    resp[3] = valid_frame_buffer.payload[3];
-                    resp[4] = valid_frame_buffer.payload[4];
-
+//                    resp[0] = valid_frame_buffer.payload[0];
+//                    resp[1] = valid_frame_buffer.payload[1];
+//                    resp[2] = valid_frame_buffer.payload[2];
+//                    resp[3] = valid_frame_buffer.payload[3];
+//                    resp[4] = valid_frame_buffer.payload[4];
+                    uint8_t  state   = (uint8_t)FSM_GetCurrentState();     // 1 byte On/Off state
+                    uint16_t temp    = 2850;  // 2 byte Nhiệt độ
+                    uint16_t current = (uint16_t)(current_mean * 100.0f);
+                    resp[0] = state;
+                    resp[1] = (temp >> 8) & 0xFF;
+                    resp[2] = temp & 0xFF;
+                    resp[3] = (current >> 8) & 0xFF;
+                    resp[4] = current & 0xFF;
                     RS485_Send_Frame_DMA(huart, SLAVE_ID, RESP_WRITE_CONTROL, resp, 5);
                 }
 

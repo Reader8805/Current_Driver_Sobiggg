@@ -127,10 +127,11 @@ int main(void)
     /* USER CODE BEGIN 3 */
     // Hàm đóng gói, phân tách bản tin
     APP_RS485_Task(&huart1);
+
 	  // Hàm này check lỗi, chạy nền song song, không làm tắc nghẽn PID
-	FSM_Update();
 	current_state = FSM_GetCurrentState();
 	UI_System_Update(current_state, current_display);
+	FSM_Update();
   }
   /* USER CODE END 3 */
 }

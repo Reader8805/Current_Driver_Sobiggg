@@ -235,21 +235,6 @@ void EXTI0_IRQHandler(void)
 }
 
 /**
-  * @brief This function handles EXTI line1 interrupt.
-  */
-void EXTI1_IRQHandler(void)
-{
-  /* USER CODE BEGIN EXTI1_IRQn 0 */
-
-  /* USER CODE END EXTI1_IRQn 0 */
-  HAL_GPIO_EXTI_IRQHandler(ADC_BUSY_Pin);
-  /* USER CODE BEGIN EXTI1_IRQn 1 */
-  // AD7606 báo lấy mẫu xong (cạnh xuống) -> Bắt đầu kéo DMA đọc SPI
-  AD7606_Start_DMA_Read();
-  /* USER CODE END EXTI1_IRQn 1 */
-}
-
-/**
   * @brief This function handles TIM1 update interrupt and TIM10 global interrupt.
   */
 void TIM1_UP_TIM10_IRQHandler(void)
@@ -349,6 +334,18 @@ void DMA2_Stream7_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
+void EXTI3_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI3_IRQn 0 */
+
+  /* USER CODE END EXTI3_IRQn 0 */
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_3);
+  /* USER CODE BEGIN EXTI3_IRQn 1 */
+  AD7606_Start_DMA_Read();
+  /* USER CODE END EXTI3_IRQn 1 */
+}
+
+
 // 3. NGẮT DMA SPI RX Hoàn thành. Mức ưu tiên: 3
 void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 {
@@ -386,4 +383,6 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
         __HAL_DMA_DISABLE_IT(huart->hdmarx, DMA_IT_HT);
     }
 }
+
+
 /* USER CODE END 1 */
