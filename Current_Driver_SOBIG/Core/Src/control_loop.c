@@ -105,8 +105,8 @@
 #define DT 0.00004f
 
 // Hệ số PID (Cần dò (tuning) trên mô hình thực tế)
-static float Kp = 0.05f;
-static float Ki = 0.0f;
+static float Kp = 0.075f;
+static float Ki = 0.6f;
 static float Kd = 0.0f;
 
 // Hệ số Feed-Forward
@@ -114,7 +114,7 @@ static float Kd = 0.0f;
 static float K_ff = 0.045833f; //R 2.2ohm
 
 // --- CẤU HÌNH SLEW RATE LIMITER ---
-#define SLEW_RATE_A_PER_SEC 50.0f      // Tốc độ tăng dòng tối đa (50A/giây)
+#define SLEW_RATE_A_PER_SEC 20.0f      // Tốc độ tăng dòng tối đa (50A/giây)
 static float internal_setpoint = 0.0f; // Setpoint "mềm" dùng cho PID để tránh sốc
 
 // Các biến trạng thái của bộ điều khiển số

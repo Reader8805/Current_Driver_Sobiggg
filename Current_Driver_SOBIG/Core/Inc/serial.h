@@ -20,6 +20,7 @@
 // Định nghĩa mã lệnh (Command Code)
 #define CMD_READ_STATUS     0x03    // Master yêu cầu đọc trạng thái
 #define CMD_WRITE_CONTROL   0x10    // Master gửi lệnh điều khiển
+#define CMD_BROADCAST_CONTROL 0x20
 
 #define RESP_READ_STATUS    0x83    // MCU phản hồi dữ liệu đọc (0x03 | 0x83)
 #define RESP_WRITE_CONTROL  0x90    // MCU phản hồi xác nhận lệnh ghi (0x10 | 0x90)

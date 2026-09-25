@@ -74,7 +74,7 @@ void RS485_Parse_Byte(UART_HandleTypeDef *huart, uint8_t rxByte) {
             break;
             
         case STATE_ADDRESS:
-            if (rxByte == SLAVE_ID || rxByte == 0xFF) { // 0xFF có thể dùng làm địa chỉ Broadcast (gửi cho tất cả)
+            if (rxByte == SLAVE_ID || rxByte == 0x00) { // 0xFF có thể dùng làm địa chỉ Broadcast (gửi cho tất cả)
                 rxFrame.address = rxByte;
                 rxState = STATE_COMMAND;
             } else {
