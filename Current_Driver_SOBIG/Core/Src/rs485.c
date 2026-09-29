@@ -11,11 +11,13 @@
 
 static AppState_t app_state = APP_STATE_IDLE;
 static uint32_t delay_start_time = 0;
+extern TIM_HandleTypeDef htim1;
 
 void APP_RS485_Task(UART_HandleTypeDef *huart)
 {
     static uint8_t target_state = 0;
     static float target_current = 0.0f;
+    static int tx_slot_delay = 0;
 
     switch (app_state) {
         case APP_STATE_IDLE:
@@ -105,11 +107,22 @@ void APP_RS485_Task(UART_HandleTypeDef *huart)
                 // --- PHẢN HỒI CHO LỆNH ĐỌC (0x03) hoặc LỆNH GHI BROADCAST (Báo cáo lại trạng thái) ---
                 if (valid_frame_buffer.command == CMD_READ_STATUS || valid_frame_buffer.command == CMD_BROADCAST_CONTROL)
                 {
-                    uint8_t  state   = (uint8_t)FSM_GetCurrentState();     // 1 byte On/Off state
+                    // uint8_t  state   = (uint8_t)FSM_GetCurrentState();     // 1 byte On/Off state
+                    // uint8_t state = (__HAL_TIM_GET_COMPARE(&htim1, TIM_CHANNEL_1) > 0) ? 1 : 0;
+                    uint8_t raw_state = (uint8_t)FSM_GetCurrentState();
+                    uint8_t tx_state  = 0; 
+
+                    // Ánh xạ lại giá trị gửi đi cho LabVIEW
+                    switch (raw_state) {
+                        case STATE_READY: tx_state = 0; break;
+                        case STATE_RUN:   tx_state = 1; break;
+                        case STATE_FAULT: tx_state = 2; break;
+                        case STATE_INIT:  tx_state = 3; break;
+                    }
                     uint16_t temp    = 2850;  // 2 byte Nhiệt độ giả lập
                     uint16_t current = (uint16_t)(current_mean * 100.0f);  // 2 byte Dòng điện thực tế
 
-                    resp[0] = state;
+                    resp[0] = tx_state;
                     resp[1] = (temp >> 8) & 0xFF;
                     resp[2] = temp & 0xFF;
                     resp[3] = (current >> 8) & 0xFF;
