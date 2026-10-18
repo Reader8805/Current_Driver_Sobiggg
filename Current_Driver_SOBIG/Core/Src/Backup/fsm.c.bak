@@ -8,7 +8,7 @@ static SystemState_t currentState = STATE_INIT;
 static uint8_t labview_cmd = 0;
 
 // --- CÁC NGƯỠNG BẢO VỆ AN TOÀN ---
-#define MAX_CURRENT_LIMIT   15.2f   // Dòng điện tối đa (Ampe)
+#define MAX_CURRENT_LIMIT   15.0f   // Dòng điện tối đa (Ampe)
 #define MAX_TEMP_LIMIT      80.0f   // Nhiệt độ tối đa (Độ C)
 
 void FSM_Init(void) {
@@ -81,7 +81,7 @@ void FSM_Update(void) {
             // Khởi tạo ngoại vi xong, tự động chuyển sang READY
             PWM_Stop();
             LED_Display(currentState);
-            HAL_Delay(5000);
+            for(int i = 0; i < 10000; i++);
             currentState = STATE_READY;
             break;
 

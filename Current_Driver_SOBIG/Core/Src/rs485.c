@@ -67,13 +67,31 @@ void APP_RS485_Task(UART_HandleTypeDef *huart)
                     // ====================================================================
                     else if (valid_frame_buffer.command == CMD_WRITE_CONTROL && valid_frame_buffer.length == 5)
                     {
+                        // Byte 0: Trạng thái Enable/Disable chung
                         target_state = valid_frame_buffer.payload[0];
-                        uint16_t raw_unsigned = (valid_frame_buffer.payload[3] << 8) | valid_frame_buffer.payload[4];
-                        int16_t current_raw = (int16_t)raw_unsigned;
-                        target_current = (float)current_raw / 100.0f;
+                        
+                        // Byte 1: Cờ bật/tắt tự động sinh sóng Sine
+                        uint8_t enable_sine = valid_frame_buffer.payload[1];
 
-                        FSM_SetCommand(target_state);
-                        Control_SetTarget(target_current);
+                        if (enable_sine == 1) {
+                            // Chế độ SINE: Byte 2, 3, 4 là thông số sóng
+                            uint8_t sine_amp = valid_frame_buffer.payload[2];
+                            uint8_t sine_freq = valid_frame_buffer.payload[3];
+                            uint8_t sine_points = valid_frame_buffer.payload[4];
+                            
+                            FSM_SetCommand(target_state);
+                            Control_SetSineMode(1, sine_amp, sine_freq, sine_points);
+                        } 
+                        else {
+                            // Chế độ MANUAL (chỉnh tay): Byte 3, 4 là Setpoint cố định (giữ tương thích code cũ)
+                            uint16_t raw_unsigned = (valid_frame_buffer.payload[3] << 8) | valid_frame_buffer.payload[4];
+                            int16_t current_raw = (int16_t)raw_unsigned;
+                            target_current = (float)current_raw / 100.0f;
+                            
+                            FSM_SetCommand(target_state);
+                            Control_SetSineMode(0, 0, 0, 0); // Báo cho control_loop biết là đã tắt sine
+                            Control_SetTarget(target_current);
+                        }
 
                         delay_start_time = HAL_GetTick();
                         app_state = APP_STATE_WAIT_TX;
@@ -120,7 +138,7 @@ void APP_RS485_Task(UART_HandleTypeDef *huart)
                         case STATE_INIT:  tx_state = 3; break;
                     }
                     uint16_t temp    = 2850;  // 2 byte Nhiệt độ giả lập
-                    uint16_t current = (uint16_t)(current_mean * 100.0f);  // 2 byte Dòng điện thực tế
+                    int16_t current = (int16_t)(current_mean * 100.0f);  // 2 byte Dòng điện thực tế
 
                     resp[0] = tx_state;
                     resp[1] = (temp >> 8) & 0xFF;

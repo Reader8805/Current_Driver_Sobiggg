@@ -1,3 +1,4 @@
-../Core/Src/control_loop.c:133:6:Control_SetTarget	16	static
-../Core/Src/control_loop.c:138:14:FF_Calc	16	static
-../Core/Src/control_loop.c:144:6:Control_UpdateLoop_ISR	40	static
+../Core/Src/control_loop.c:257:6:Control_SetSineMode	16	static
+../Core/Src/control_loop.c:270:6:Control_SetTarget	16	static
+../Core/Src/control_loop.c:276:14:FF_Calc	16	static
+../Core/Src/control_loop.c:280:6:Control_UpdateLoop_ISR	48	static
