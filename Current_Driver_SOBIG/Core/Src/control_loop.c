@@ -101,9 +101,9 @@
 #include "fsm.h"
 
 // --- CÁC THÔNG SỐ CỦA BỘ ĐIỀU KHIỂN ---
-// Tần số trích mẫu 25kHz -> Ts = 40us
-#define DT 0.00004f
-
+// Tần số trích mẫu 25kHz -> Ts = 120us
+//#define DT 0.00004f
+#define DT 0.0012f
 // Hệ số PID (Cần dò (tuning) trên mô hình thực tế)
 static float Kp = 0.05f;
 static float Ki = 0.0f;
@@ -143,7 +143,7 @@ static float FF_Calc(float setpoint) {
 // Hàm gọi trong Ngắt DMA ADC (chu kỳ 40us / 25kHz)
 void Control_UpdateLoop_ISR(void) {
     // CHỈ ĐIỀU KHIỂN KHI HỆ THỐNG ĐANG Ở TRẠNG THÁI RUN
-    if (FSM_GetCurrentState() == STATE_RUN) {
+    if (FSM_GetCurrentState() == STATE_RUN && AD7606_IsReady()) {
 
         // --- KHÂU SLEW RATE LIMITER (RAMP GENERATOR) ---
         // Tính bước tăng/giảm tối đa cho phép trong 1 chu kỳ (40us)

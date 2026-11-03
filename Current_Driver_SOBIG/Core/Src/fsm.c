@@ -81,8 +81,7 @@ void FSM_Update(void) {
             // Khởi tạo ngoại vi xong, tự động chuyển sang READY
             PWM_Stop();
             LED_Display(currentState);
-            for(int i = 0; i < 10000; i++);
-            currentState = STATE_READY;
+            if (AD7606_IsReady()) currentState = STATE_READY;
             break;
 
         case STATE_READY:
@@ -90,7 +89,7 @@ void FSM_Update(void) {
             PWM_Stop(); // Đảm bảo phần cứng tắt hoàn toàn
 
             // Đợi lệnh Start (1) từ LabVIEW mới cho chạy
-            if (labview_cmd == 1) {
+            if (labview_cmd == 1 && AD7606_IsReady()) {
                 currentState = STATE_RUN;
             }
             break;
@@ -101,9 +100,9 @@ void FSM_Update(void) {
             // được thực hiện bên trong ngắt của hàm Control_UpdateLoop_ISR (control_loop.c)
 
             // Nếu LabVIEW gửi lệnh Stop (0)
-            if (labview_cmd == 0) {
+            if (labview_cmd == 0 || !AD7606_IsReady()) {
                 PWM_Stop();
-                currentState = STATE_READY;
+                currentState = AD7606_IsReady() ? STATE_READY : STATE_FAULT;
             }
             break;
 
@@ -115,7 +114,8 @@ void FSM_Update(void) {
             // Trong trạng thái lỗi, chỉ chấp nhận duy nhất lệnh Reset (2) từ LabVIEW
             if (labview_cmd == 0) {
                 // Kiểm tra xem nhiệt độ đã hạ xuống ngưỡng an toàn chưa mới cho Reset
-            	if ((HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_0) == GPIO_PIN_SET))
+            	if (AD7606_IsReady() &&
+                     (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_0) == GPIO_PIN_SET))
             	 {
             	   // Hệ thống đã an toàn, cho phép về trạng thái chờ
             		currentState = STATE_READY;

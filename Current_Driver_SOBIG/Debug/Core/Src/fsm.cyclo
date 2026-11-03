@@ -3,4 +3,4 @@
 ../Core/Src/fsm.c:23:6:FSM_SetState	1
 ../Core/Src/fsm.c:28:6:FSM_SetCommand	1
 ../Core/Src/fsm.c:31:6:LED_Display	5
-../Core/Src/fsm.c:61:6:FSM_Update	14
+../Core/Src/fsm.c:61:6:FSM_Update	18

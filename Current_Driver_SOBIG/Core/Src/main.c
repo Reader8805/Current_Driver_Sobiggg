@@ -106,16 +106,102 @@ int main(void)
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
   // 1. Khởi tạo State Machine và các Module ngoại vi
-    FSM_Init();
-    AD7606_Init();
-    offset_ch1 = AD7606_Calibrate_Offset_CH1(5000);
-    PWM_Init();
-    RS485_Init(&huart1);
-    lcd_init();
-    // 2. Bắt đầu kích hoạt Timer chạy ngầm tạo Pipeline ADC-PWM 25kHz
-    HAL_TIM_Base_Start_IT(&htim1);
+//    FSM_Init();
+//    AD7606_Init();
+//    offset_ch1 = AD7606_Calibrate_Offset_CH1(5000);
+//    PWM_Init();
+//    RS485_Init(&huart1);
+//    lcd_init();
+//    // 2. Bắt đầu kích hoạt Timer chạy ngầm tạo Pipeline ADC-PWM 25kHz
+//    HAL_TIM_Base_Start_IT(&htim1);
 
-    // 3. (Tuỳ chọn) Bật nhận Modbus DMA tại đây...
+  FSM_Init();
+  /* Chưa khởi động PWM/timer trong quá trình hiệu chuẩn. */
+  PWM_Stop();
+  HAL_NVIC_DisableIRQ(EXTI3_IRQn);
+
+  lcd_init();
+  lcd_put_cur(0, 0);
+  lcd_send_string("STARTING...  ");
+
+  /*
+   * Khoảng chờ thử nghiệm cho nguồn cảm biến ổn định.
+   * Nếu cảm biến cần lâu hơn, phải điều chỉnh theo phần cứng.
+   */
+  HAL_Delay(1000);
+
+  AD7606_Init();
+
+  /* Use the runtime sampling path during zero calibration as well.
+   * Keep STATE_INIT and zero duty until calibration succeeds.
+   */
+  PWM_Init();
+  PWM_Stop();
+  __HAL_GPIO_EXTI_CLEAR_IT(ADC_BUSY_Pin);
+  HAL_NVIC_ClearPendingIRQ(EXTI3_IRQn);
+  HAL_NVIC_SetPriority(EXTI3_IRQn, 1, 0);
+  HAL_NVIC_EnableIRQ(EXTI3_IRQn);
+  __HAL_TIM_CLEAR_FLAG(&htim1, TIM_FLAG_UPDATE);
+  HAL_StatusTypeDef timer_status = HAL_TIM_Base_Start_IT(&htim1);
+
+  int16_t calibrated_offset = 0;
+
+  HAL_StatusTypeDef adc_status = timer_status;
+  if (adc_status == HAL_OK)
+      adc_status = AD7606_Calibrate_Offset_CH1(4096, &calibrated_offset);
+
+  if (adc_status != HAL_OK)
+  {
+      /* Preserve the cause before aborting SPI changes peripheral status. */
+      AD7606_Error_t adc_error = AD7606_GetError();
+      HAL_TIM_Base_Stop_IT(&htim1);
+      HAL_NVIC_DisableIRQ(EXTI3_IRQn);
+      HAL_SPI_Abort(&hspi1);
+      AD7606_End_DMA_Read();
+      PWM_Stop();
+      FSM_SetState(STATE_FAULT);
+
+      lcd_clear();
+      lcd_put_cur(0, 0);
+      lcd_send_string("ADC INIT ERROR  ");
+      lcd_put_cur(1, 0);
+      if (timer_status != HAL_OK)
+          lcd_send_string("TIMER START ERR ");
+      else
+      {
+          switch (adc_error)
+          {
+          case ADC_ERROR_SAMPLE_OVERRUN:
+              lcd_send_string("ADC OVERRUN     "); break;
+          case ADC_ERROR_BUSY_STUCK:
+              lcd_send_string("ADC BUSY HIGH   "); break;
+          case ADC_ERROR_DMA_START:
+              lcd_send_string("DMA START ERROR "); break;
+          case ADC_ERROR_SPI:
+              lcd_send_string("SPI ERROR       "); break;
+          case ADC_ERROR_NO_SAMPLES:
+              lcd_send_string("ADC NO SAMPLES  "); break;
+          case ADC_ERROR_ZERO_NOISE:
+              lcd_send_string("ZERO TOO NOISY  "); break;
+          case ADC_ERROR_ZERO_DRIFT:
+              lcd_send_string("ZERO DRIFT      "); break;
+          default:
+              lcd_send_string("CALIBRATION ERR "); break;
+          }
+      }
+      while (1)
+      {
+          HAL_Delay(100);
+      }
+  }
+
+  offset_ch1 = calibrated_offset;
+
+  RS485_Init(&huart1);
+
+  lcd_clear();
+
+  /* Sampling is already running; do not restart it after calibration. */
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -130,7 +216,15 @@ int main(void)
 
 	  // Hàm này check lỗi, chạy nền song song, không làm tắc nghẽn PID
 	current_state = FSM_GetCurrentState();
-	UI_System_Update(current_state, current_display);
+	//UI_System_Update(current_state, current_display);
+	static uint32_t last_lcd_tick = 0;
+	uint32_t now = HAL_GetTick();
+
+	if ((uint32_t)(now - last_lcd_tick) >= 50U)
+	{
+	    last_lcd_tick = now;
+	    UI_System_Update(current_state, current_display);
+	}
 	FSM_Update();
   }
   /* USER CODE END 3 */

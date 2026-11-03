@@ -1,114 +1,227 @@
 #include "ad7606.h"
+#include "pwm_control.h"
+#include "fsm.h"
 
-// Biến hspi1 từ main.c
 extern SPI_HandleTypeDef hspi1;
-
-// Buffer RAW nhận từ SPI
-volatile int16_t adc_raw[8];
-
-volatile float adc_voltage[8];
 extern volatile int16_t offset_ch1;
-volatile float current_mean = 0;
 extern volatile float current_display;
-// Cần 1 buffer rỗng đẩy qua SPI để tạo clock cho quá trình nhận data
-static uint16_t dummy_tx[8] = {0};
+volatile int16_t adc_raw[8];
+volatile float adc_voltage[8];
+volatile float current_mean = 0.0f;
+static uint16_t dummy_tx[8];
 
-// Hàm delay ảo dùng NOP, tốn khoảng vài chục nano-giây, không làm nghẽn CPU
-static inline void delay_short(void) {
-    for(int i = 0; i < 15; i++) __NOP();
-}
+/* Initial bench limits, in ADC counts. Tune using actual zero-current noise.
+ * 8 counts is approximately 0.019 A with the existing +/-5 V scaling.
+ */
+#define ZERO_SETTLE_MS       1000U
+#define ZERO_TIMEOUT_MS      8000U
+#define ZERO_MAX_SPAN        128
+#define ZERO_MAX_MEAN_DRIFT  8.0f
+#define ZERO_STABLE_WINDOWS  3U
+static volatile uint8_t calibration_ready;
+static volatile uint8_t acquisition_fault;
+static volatile uint8_t conversion_pending;
+static volatile uint8_t collecting;
+static volatile uint8_t window_ready;
+static volatile uint16_t window_count;
+static uint16_t window_target;
+static volatile int32_t window_sum;
+static volatile int16_t window_min, window_max;
+static float zero_offset, display_filtered;
+static volatile AD7606_Error_t adc_error;
+/* Retain measurements for inspection in the debugger after a failed boot. */
+volatile int32_t adc_zero_span;
+volatile float adc_zero_mean;
+volatile uint32_t adc_zero_windows;
 
-int16_t AD7606_Calibrate_Offset_CH1(uint16_t num_samples)
+static inline void delay_short(void)
 {
-    int32_t sum = 0;
+    for (int i = 0; i < 15; i++) __NOP();
+}
 
-    // Tắt ngắt BUSY để tránh kích hoạt ngắt khi đang đọc tay
-    HAL_NVIC_DisableIRQ(EXTI3_IRQn);
+uint8_t AD7606_IsReady(void)
+{
+    return calibration_ready && !acquisition_fault;
+}
 
-    for(uint16_t i = 0; i < num_samples; i++)
+AD7606_Error_t AD7606_GetError(void)
+{
+    return adc_error;
+}
+
+static void acquisition_failed(AD7606_Error_t reason)
+{
+    if (adc_error == ADC_ERROR_NONE) adc_error = reason;
+    acquisition_fault = 1U;
+    calibration_ready = 0U;
+    PWM_Stop();
+    FSM_SetState(STATE_FAULT);
+}
+
+void AD7606_SetAcquisitionFault(void)
+{
+    acquisition_failed(ADC_ERROR_SPI);
+}
+
+void AD7606_Init(void)
+{
+    /* Call before starting the sampling timer. */
+    calibration_ready = acquisition_fault = conversion_pending = 0U;
+    collecting = window_ready = 0U;
+    adc_error = ADC_ERROR_NONE;
+    adc_zero_span = 0;
+    adc_zero_mean = 0.0f;
+    adc_zero_windows = 0U;
+    zero_offset = current_mean = display_filtered = current_display = 0.0f;
+    HAL_GPIO_WritePin(ADC_CS_GPIO_Port, ADC_CS_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(ADC_CONVST_GPIO_Port, ADC_CONVST_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(ADC_RST_GPIO_Port, ADC_RST_Pin, GPIO_PIN_SET);
+    HAL_Delay(1);
+    HAL_GPIO_WritePin(ADC_RST_GPIO_Port, ADC_RST_Pin, GPIO_PIN_RESET);
+    HAL_Delay(1);
+}
+
+void AD7606_Trigger(void)
+{
+    if (acquisition_fault) return;
+    if (conversion_pending)
     {
-        AD7606_Trigger();
-
-        // Thêm timeout chống kẹt cứng (tối đa 5000 vòng)
-        uint32_t timeout = 5000;
-        while((HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_3) == GPIO_PIN_SET) && (--timeout > 0));
-
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET); // CS LOW
-
-        // Đọc 8 channel (16-bit mỗi kênh = 8 halfword = 16 bytes)
-        HAL_SPI_TransmitReceive(&hspi1, (uint8_t*)dummy_tx, (uint8_t*)adc_raw, 8, 10);
-
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);   // CS HIGH
-
-        sum += adc_raw[0];
-        //HAL_Delay(1);
+        acquisition_failed(ADC_ERROR_SAMPLE_OVERRUN);
+        return;
     }
-
-    HAL_NVIC_EnableIRQ(EXTI3_IRQn);
-
-    return (int16_t)(sum / num_samples);
-}
-
-
-void AD7606_Init(void) {
-    // Đảm bảo các chân điều khiển ở trạng thái chờ
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET); // CS High
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_SET); // CONVST High
-
-    // Xung Reset module theo chuẩn datasheet
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_SET); // RST High
-    HAL_Delay(1);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_RESET); // RST Low
-    HAL_Delay(1);
-}
-
-void AD7606_Trigger(void) {
-    // Tạo xung mức thấp kéo dài ít nhất 50ns để bắt đầu lấy mẫu đồng loạt
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_RESET); // CONVST LOW
+    if (HAL_GPIO_ReadPin(ADC_BUSY_GPIO_Port, ADC_BUSY_Pin) == GPIO_PIN_SET)
+    {
+        acquisition_failed(ADC_ERROR_BUSY_STUCK);
+        return;
+    }
+    conversion_pending = 1U;
+    HAL_GPIO_WritePin(ADC_CONVST_GPIO_Port, ADC_CONVST_Pin, GPIO_PIN_RESET);
     delay_short();
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_SET);   // CONVST HIGH
+    HAL_GPIO_WritePin(ADC_CONVST_GPIO_Port, ADC_CONVST_Pin, GPIO_PIN_SET);
 }
 
-void AD7606_Start_DMA_Read(void) {
-    // Kéo chân Chip Select xuống để báo hiệu bắt đầu truyền data
-//	uint32_t flush_dr = hspi1.Instance->DR;
-//	(void)flush_dr;
-//	__HAL_SPI_CLEAR_OVRFLAG(&hspi1);
-
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET); // CS LOW
-
-    // Gọi hàm SPI truyền/nhận qua DMA. CPU hoàn toàn rảnh tay đi làm việc khác.
-    //HAL_SPI_Receive_DMA(&hspi1, (uint8_t*)adc_raw, 8);
-    HAL_SPI_TransmitReceive_DMA(&hspi1, (uint8_t*)dummy_tx, (uint8_t*)adc_raw, 8);
+void AD7606_Start_DMA_Read(void)
+{
+    if (acquisition_fault || !conversion_pending) return;
+    HAL_GPIO_WritePin(ADC_CS_GPIO_Port, ADC_CS_Pin, GPIO_PIN_RESET);
+    if (HAL_SPI_TransmitReceive_DMA(&hspi1, (uint8_t *)dummy_tx,
+                                  (uint8_t *)adc_raw, 8) != HAL_OK)
+    {
+        HAL_GPIO_WritePin(ADC_CS_GPIO_Port, ADC_CS_Pin, GPIO_PIN_SET);
+        acquisition_failed(ADC_ERROR_DMA_START);
+    }
 }
 
-void AD7606_End_DMA_Read(void) {
-    // DMA đọc xong sẽ gọi vào hàm này -> Kéo CS lên để nhả bus SPI
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET); // CS HIGH
+void AD7606_End_DMA_Read(void)
+{
+    HAL_GPIO_WritePin(ADC_CS_GPIO_Port, ADC_CS_Pin, GPIO_PIN_SET);
+    conversion_pending = 0U;
 }
 
-void AD7606_Process_Data(void) {
-    // Scale giá trị RAW sang Float. 5.0V ứng với dải 16-bit (-32768 đến 32767)
-
-	if(adc_raw[0] < offset_ch1){
-
-
-	    current_mean = NEG_GAIN* (float)(adc_raw[0]-offset_ch1) * 5.0f/ 32768.0f/ 0.06722f;
-
-	    // Biên độ dòng điện đỉnh-đỉnh và Nhiễu dòng điện (std)
-//	    current_peak_to_peak = current_max - current_min;
-//	    current_std          = POS_GAIN*(adc_std * 5.0f / 32768.0f) / 0.06722f;
-	}else if(adc_raw[0] >= offset_ch1){
-		 current_mean = POS_GAIN* (float)(adc_raw[0]-offset_ch1) * 5.0f/ 32768.0f/ 0.06722f;
-
-		    // Biên độ dòng điện đỉnh-đỉnh và Nhiễu dòng điện (std)
-//		    current_peak_to_peak = current_max - current_min;
-//		    current_std          = POS_GAIN*(adc_std * 5.0f / 32768.0f) / 0.06722f;
-
-	}
-	current_display = current_mean;
-	if(current_display < 0.1 && current_display > -0.1)
-		current_display = 0;
-
+/* Main context only, with timer + EXTI + DMA already running.
+ * Physical current MUST be zero: stability alone cannot prove zero current.
+ */
+HAL_StatusTypeDef AD7606_Calibrate_Offset_CH1(uint16_t num_samples,
+                                          int16_t *result)
+{
+    if (num_samples == 0U || result == NULL) return HAL_ERROR;
+    calibration_ready = collecting = window_ready = 0U;
+    window_target = num_samples;
+    HAL_Delay(ZERO_SETTLE_MS);
+    uint32_t start = HAL_GetTick();
+    uint8_t stable = 0U;
+    float mean_min = 0.0f, mean_max = 0.0f, mean_sum = 0.0f;
+    uint32_t noisy_windows = 0U;
+    while ((HAL_GetTick() - start) < ZERO_TIMEOUT_MS)
+    {
+        if (acquisition_fault) return HAL_ERROR;
+        if (window_ready)
+        {
+            float mean = (float)window_sum / num_samples;
+            int32_t span = (int32_t)window_max - window_min;
+            adc_zero_mean = mean;
+            adc_zero_span = span;
+            adc_zero_windows++;
+            if (span > ZERO_MAX_SPAN)
+            {
+                noisy_windows++;
+                stable = 0U;
+            }
+            else
+            {
+                float low = (stable && mean_min < mean) ? mean_min : mean;
+                float high = (stable && mean_max > mean) ? mean_max : mean;
+                if (!stable || high - low > ZERO_MAX_MEAN_DRIFT)
+                {
+                    stable = 1U;
+                    mean_min = mean_max = mean;
+                    mean_sum = mean;
+                }
+                else
+                {
+                    mean_min = low;
+                    mean_max = high;
+                    mean_sum += mean;
+                    stable++;
+                }
+                if (stable >= ZERO_STABLE_WINDOWS)
+                {
+                    /* Retain fractional counts in the feedback offset. */
+                    zero_offset = mean_sum / stable;
+                    *result = (int16_t)zero_offset;
+                    offset_ch1 = *result;
+                    display_filtered = 0.0f;
+                    __DMB();
+                    calibration_ready = 1U;
+                    return HAL_OK;
+                }
+            }
+            window_ready = 0U;
+        }
+        if (!collecting && !window_ready)
+        {
+            window_sum = 0;
+            window_count = 0U;
+            window_min = INT16_MAX;
+            window_max = INT16_MIN;
+            __DMB();
+            collecting = 1U;
+        }
+        HAL_Delay(1);
+    }
+    collecting = 0U;
+    /* Do not overwrite an acquisition fault arriving at the deadline. */
+    if (acquisition_fault) return HAL_ERROR;
+    adc_error = adc_zero_windows == 0U ? ADC_ERROR_NO_SAMPLES :
+                (noisy_windows == adc_zero_windows ? ADC_ERROR_ZERO_NOISE :
+                                                    ADC_ERROR_ZERO_DRIFT);
+    return HAL_TIMEOUT;
 }
 
+void AD7606_Process_Data(void)
+{
+    int16_t raw = adc_raw[0];
+    if (acquisition_fault) return;
+    if (collecting)
+    {
+        window_sum += raw;
+        if (raw < window_min) window_min = raw;
+        if (raw > window_max) window_max = raw;
+        if (++window_count >= window_target)
+        {
+            collecting = 0U;
+            __DMB();
+            window_ready = 1U;
+        }
+    }
+    if (!calibration_ready) return;
+    float delta = (float)raw - zero_offset;
+    float gain = delta < 0.0f ? (float)NEG_GAIN : (float)POS_GAIN;
+    /* Feedback/protection stay at full sample rate; filter only the LCD. */
+    current_mean = gain * delta * (5.0f / 32768.0f / 0.06722f);
+    display_filtered += 0.0012f * (current_mean - display_filtered);
+    if (display_filtered > -0.1f && display_filtered < 0.1f)
+        current_display = 0.0f;
+    else
+        current_display = display_filtered;
+}

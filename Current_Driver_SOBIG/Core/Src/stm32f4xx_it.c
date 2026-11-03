@@ -245,7 +245,14 @@ void TIM1_UP_TIM10_IRQHandler(void)
   HAL_TIM_IRQHandler(&htim1);
   /* USER CODE BEGIN TIM1_UP_TIM10_IRQn 1 */
   // Timer đếm đến đỉnh/đáy -> Kích hoạt lấy mẫu AD7606
-  AD7606_Trigger();
+  //AD7606_Trigger();
+  static uint8_t adc_divider = 0;
+
+  if (++adc_divider >= 3U)
+  {
+      adc_divider = 0U;
+      AD7606_Trigger();
+  }
   /* USER CODE END TIM1_UP_TIM10_IRQn 1 */
 }
 
@@ -358,10 +365,24 @@ void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
         AD7606_Process_Data();
 
         // Gọi vòng lặp điều khiển tính toán và xuất PWM ngay lập tức
-        Control_UpdateLoop_ISR();
+        if (AD7606_IsReady())
+            Control_UpdateLoop_ISR();
+        else
+            PWM_Stop();
     }
 }
 // --- COPY TOÀN BỘ ĐOẠN NÀY VÀO CUỐI FILE serial.c ---
+
+void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
+{
+    if (hspi->Instance == SPI1)
+    {
+        AD7606_SetAcquisitionFault();
+        HAL_GPIO_WritePin(ADC_CS_GPIO_Port, ADC_CS_Pin, GPIO_PIN_SET);
+        PWM_Stop();
+        FSM_SetState(STATE_FAULT);
+    }
+}
 
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
     if (huart->Instance == USART1) {
